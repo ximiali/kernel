@@ -762,8 +762,8 @@ static const struct dcc_register_entry talos_dcc_entries[] = {
 	{ "R 0x1805005C 1" },
 	{ "R 0x1806005C 1" },
 	{ "R 0x1807005C 1" },
-	{ "R 0x3d96000" },
-	{ "R 0x3d96004" },
+	{ "R 0x5092000" },
+	{ "R 0x5092004" },
 };
 
 static const struct dcc_link_config talos_link_configs[] = {

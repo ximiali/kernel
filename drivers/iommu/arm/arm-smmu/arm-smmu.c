@@ -916,7 +916,11 @@ static int arm_smmu_init_domain_context(struct arm_smmu_domain *smmu_domain,
 
 	/* Initialise the context bank with our page table cfg */
 	arm_smmu_init_context_bank(smmu_domain, &pgtbl_cfg);
+	dev_info(smmu->dev, "INIT_DOMAIN_CONTEXT: before write_context_bank cb=%d\n",
+		 cfg->cbndx);
 	arm_smmu_write_context_bank(smmu, cfg->cbndx);
+	dev_info(smmu->dev, "INIT_DOMAIN_CONTEXT: after write_context_bank cb=%d\n",
+		 cfg->cbndx);
 
 	/*
 	 * Request context fault interrupt. Do this last to avoid the
@@ -972,7 +976,11 @@ static void arm_smmu_destroy_domain_context(struct arm_smmu_domain *smmu_domain)
 	 * it.
 	 */
 	smmu->cbs[cfg->cbndx].cfg = NULL;
+	dev_info(smmu->dev, "DESTROY_DOMAIN_CONTEXT: before write_context_bank cb=%d\n",
+		 cfg->cbndx);
 	arm_smmu_write_context_bank(smmu, cfg->cbndx);
+	dev_info(smmu->dev, "DESTROY_DOMAIN_CONTEXT: after write_context_bank cb=%d\n",
+		 cfg->cbndx);
 
 	if (cfg->irptndx != ARM_SMMU_INVALID_IRPTNDX) {
 		irq = smmu->irqs[cfg->irptndx];
@@ -1732,6 +1740,8 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	int i;
 	u32 reg;
 
+	dev_info(smmu->dev, "DEVICE_RESET: enter\n");
+
 	/* clear global FSR */
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sGFSR);
 	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_sGFSR, reg);
@@ -1745,9 +1755,13 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	/* Make sure all context banks are disabled and clear CB_FSR  */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
+		pr_debug("DEVICE_RESET: writing cb=%d\n", i);
 		arm_smmu_write_context_bank(smmu, i);
 		arm_smmu_cb_write(smmu, i, ARM_SMMU_CB_FSR, ARM_SMMU_CB_FSR_FAULT);
 	}
+
+	dev_info(smmu->dev, "DEVICE_RESET: cb loop done, num_cb=%d\n",
+		 smmu->num_context_banks);
 
 	/* Invalidate the TLB, just in case */
 	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_TLBIALLH, QCOM_DUMMY_VAL);
@@ -2370,15 +2384,20 @@ static int __maybe_unused arm_smmu_runtime_resume(struct device *dev)
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 	int ret;
 
+	dev_info(dev, "RUNTIME_RESUME: enter\n");
+
 	arm_smmu_icc_enable(smmu);
+	dev_info(dev, "RUNTIME_RESUME: after icc_enable\n");
 
 	ret = clk_bulk_enable(smmu->num_clks, smmu->clks);
+	dev_info(dev, "RUNTIME_RESUME: after clk_bulk_enable ret=%d\n", ret);
 	if (ret) {
 		arm_smmu_icc_disable(smmu);
 		return ret;
 	}
 
 	arm_smmu_device_reset(smmu);
+	dev_info(dev, "RUNTIME_RESUME: after device_reset\n");
 
 	return 0;
 }
@@ -2387,8 +2406,12 @@ static int __maybe_unused arm_smmu_runtime_suspend(struct device *dev)
 {
 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
 
+	dev_info(dev, "RUNTIME_SUSPEND: enter\n");
+
 	clk_bulk_disable(smmu->num_clks, smmu->clks);
 	arm_smmu_icc_disable(smmu);
+
+	dev_info(dev, "RUNTIME_SUSPEND: done\n");
 
 	return 0;
 }

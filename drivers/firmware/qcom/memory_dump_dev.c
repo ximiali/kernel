@@ -100,6 +100,7 @@ enum dump_ids {
 	PCU_REG		= 0x164,
 	FSM_DATA	= 0x165,
 	SCANDUMP_SMMU	= 0x220,
+	SPR_DUMP_CPU0	= 0x1f0,
 };
 
 static const struct dump_item lemans_items[] = {
@@ -164,6 +165,8 @@ static const struct dump_item lemans_items[] = {
 	{ PMIC, 0x80000, "pmic" },
 	{ RPM_SW, 0x28000, "rpm-sw" },
 	{ RPMH, 0x2000000, "rpmh" },
+	/* TEMP: for sysfs testing only */
+	{ SPR_DUMP_CPU0, 0x1000, "spr-cpu0" },
 };
 
 static const struct dump_item talos_items[] = {
@@ -216,6 +219,9 @@ static const struct dump_item talos_items[] = {
 	{ L2_TLB10200, 0x7800, "l2-tlb600" },
 	{ L2_TLB10300, 0x7800, "l2-tlb700" },
 	{ LLCC1_D_CACHE, 0x6c000, "llcc1-d-cache" },
+	/* TEMP: for sysfs testing only */
+	{ CPUSS_REG, 0x30000, "cpuss-reg" },
+	{ SPR_DUMP_CPU0, 0x1000, "spr-cpu0" },
 };
 
 static const struct dump_item kodiak_items[] = {

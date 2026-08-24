@@ -261,6 +261,7 @@ static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
 	struct io_pgtable *pgtable = io_pgtable_ops_to_pgtable(smmu_domain->pgtbl_ops);
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	struct arm_smmu_cb *cb = &smmu_domain->smmu->cbs[cfg->cbndx];
+	int ret;
 
 	dev_info(smmu_domain->smmu->dev,
                  "TTBR0_CFG: enter cb=%u enable=%d rpm_active=%d\n",
@@ -296,21 +297,21 @@ static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
 		cb->ttbr[0] |= FIELD_PREP(ARM_SMMU_TTBRn_ASID, cb->cfg->asid);
 	}
 
-	// dev_info(smmu_domain->smmu->dev,
-    //              "TTBR0_CFG: before resume_and_get cb=%u\n",
-    //              cb->cfg->cbndx);
+	dev_info(smmu_domain->smmu->dev,
+                 "TTBR0_CFG: before resume_and_get cb=%u\n",
+                 cb->cfg->cbndx);
 
-	// ret = pm_runtime_resume_and_get(smmu_domain->smmu->dev);
+	ret = pm_runtime_resume_and_get(smmu_domain->smmu->dev);
 
-	// dev_info(smmu_domain->smmu->dev,
-    //              "TTBR0_CFG: after resume_and_get cb=%u ret=%d rpm_active=%d\n",
-    //              cb->cfg->cbndx, ret,
-    //              pm_runtime_active(smmu_domain->smmu->dev));
+	dev_info(smmu_domain->smmu->dev,
+                 "TTBR0_CFG: after resume_and_get cb=%u ret=%d rpm_active=%d\n",
+                 cb->cfg->cbndx, ret,
+                 pm_runtime_active(smmu_domain->smmu->dev));
 
-	// if (ret < 0) {
-	// 	dev_err(smmu_domain->smmu->dev, "failed to get runtime PM: %d\n", ret);
-	// 	return -ENODEV;
-	// }
+	if (ret < 0) {
+		dev_err(smmu_domain->smmu->dev, "failed to get runtime PM: %d\n", ret);
+		return -ENODEV;
+	}
 
 	dev_info(smmu_domain->smmu->dev,
                  "TTBR0_CFG: before explicit CB write cb=%u\n",
@@ -322,12 +323,12 @@ static int qcom_adreno_smmu_set_ttbr0_cfg(const void *cookie,
                  "TTBR0_CFG: after explicit CB write cb=%u\n",
                  cb->cfg->cbndx);
 
-	// pm_runtime_put_autosuspend(smmu_domain->smmu->dev);
+	pm_runtime_put_autosuspend(smmu_domain->smmu->dev);
 
-	// dev_info(smmu_domain->smmu->dev,
-    //      "TTBR0_CFG: after put_autosuspend cb=%u rpm_active=%d\n",
-    //      cb->cfg->cbndx,
-    //      pm_runtime_active(smmu_domain->smmu->dev));
+	dev_info(smmu_domain->smmu->dev,
+         "TTBR0_CFG: after put_autosuspend cb=%u rpm_active=%d\n",
+         cb->cfg->cbndx,
+         pm_runtime_active(smmu_domain->smmu->dev));
 
 	return 0;
 }

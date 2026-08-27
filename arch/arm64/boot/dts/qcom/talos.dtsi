@@ -693,7 +693,8 @@
 		};
 		
 		mem_dump_mem: mem-dump {
-			size = <0x0 0x2400000>;
+			compatible = "shared-dma-pool";
+			size = <0x0 0x4000000>;
 			no-map;
 		};
 	};

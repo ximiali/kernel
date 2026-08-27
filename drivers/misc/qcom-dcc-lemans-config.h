@@ -1602,6 +1602,8 @@ static const struct dcc_register_entry lemans_dcc_entries[] = {
 	{ "R 0x9c45944" },
 	{ "R 0x9c46604" },
 	{ "R 0x9c4660c" },
+	{ "R 0x3d96000" },
+	{ "R 0x3d96004" },
 };
 
 static const struct dcc_link_config lemans_link_configs[] = {

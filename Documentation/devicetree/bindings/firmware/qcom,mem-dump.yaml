@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/qcom,mem-dump.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Memory Dump
+
+description:
+  The Qualcomm memory dump driver allows client subsystems (e.g. CPU
+  context/scandump, caches, TLBs, trace units) to register dump regions.
+  On a deadlock or CPU hang, these regions are captured to provide a
+  snapshot of the system state at the time of the crash. Each dump
+  region is described by a child node carrying an identifier and a size,
+  and the collected data is stored in a memory region referenced by
+  "memory-region".
+
+maintainers:
+  - Jie Gan <jie.gan@oss.qualcomm.com>
+
+properties:
+  compatible:
+    const: qcom,mem-dump
+
+  memory-region:
+    maxItems: 1
+    description:
+      Reference to the reserved-memory region backing the collected
+      dump data.
+
+  phandle: true
+
+$defs:
+  dump-entry:
+    description:
+      A single dump entry, identifying a hardware unit or data region
+      to be captured.
+
+    properties:
+      qcom,dump-id:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Unique identifier for this dump entry, matching the ID
+          expected by the corresponding firmware/hardware dump table.
+
+      qcom,dump-size:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Size, in bytes, to reserve in the dump memory region for
+          this entry.
+
+    required:
+      - qcom,dump-id
+      - qcom,dump-size
+
+    additionalProperties: false
+
+patternProperties:
+  "^[a-z][a-z0-9-]*$":
+    $ref: "#/$defs/dump-entry"
+
+required:
+  - compatible
+  - memory-region
+
+additionalProperties: false
+
+examples:
+  - |
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        mem_dump_mem: mem-dump {
+            compatible = "shared-dma-pool";
+            size = <0x0 0x4000000>;
+            no-map;
+        };
+    };
+
+    mem-dump {
+        compatible = "qcom,mem-dump";
+        memory-region = <&mem_dump_mem>;
+
+        cpuss-reg {
+            qcom,dump-id = <0xef>;
+            qcom,dump-size = <0x20000>;
+        };
+
+        spr-cpu0 {
+            qcom,dump-id = <0x1f0>;
+            qcom,dump-size = <0x1000>;
+        };
+
+        rpmh {
+            qcom,dump-id = <0xec>;
+            qcom,dump-size = <0x2000000>;
+        };
+    };
+
+...

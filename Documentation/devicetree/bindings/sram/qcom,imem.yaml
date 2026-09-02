@@ -97,6 +97,26 @@ patternProperties:
 
     additionalProperties: false
 
+  "^mem-dump-table@[0-9a-f]+$":
+    type: object
+    description:
+      Region used to store the physical address of the memory dump table
+      (see qcom,mem-dump.yaml) so that it can be located by post-mortem
+      debugging tools after a warm reset.
+
+    properties:
+      compatible:
+        const: qcom,msm-imem-mem-dump-table
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+
+    additionalProperties: false
+
   "^pil-reloc@[0-9a-f]+$":
     $ref: /schemas/remoteproc/qcom,pil-info.yaml#
     description: Peripheral image loader relocation region
@@ -140,6 +160,11 @@ examples:
 
             #address-cells = <1>;
             #size-cells = <1>;
+
+            mem-dump-table@10 {
+                compatible = "qcom,msm-imem-mem-dump-table";
+                reg = <0x10 0x8>;
+            };
 
             pil-reloc@94c {
                 compatible = "qcom,pil-reloc-info";

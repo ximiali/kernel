@@ -1,0 +1,101 @@
+What:		/sys/devices/platform/<mem-dump-device>/core_reg_num
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(RW) Number of per-core CPU subsystem (CPUSS) registers to
+		reserve space for in the register dump table.
+
+		Read returns the currently configured count in decimal.
+
+		Write accepts a hexadecimal value. The write fails with
+		-EPERM if any per-core or system register has already been
+		configured via register_config, since changing the count
+		afterwards would invalidate the existing layout. It fails
+		with -EINVAL or -ENOMEM if the requested count does not
+		leave enough reserved dump memory for the fixed table
+		header.
+
+What:		/sys/devices/platform/<mem-dump-device>/register_config
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(RW) Configuration of the CPUSS registers to be captured in
+		the register dump.
+
+		Read returns the list of currently configured registers,
+		one per line, first the per-core registers under a
+		"per-core registers:" header and then the system registers
+		under a "system registers:" header. Each register line has
+		the form:
+
+			0xOFFSET, 0xVALUE, TYPE
+
+		where TYPE is one of:
+
+			r - single register read
+			w - register write
+			d - delay
+			R - repeated read
+
+		Write accepts:
+
+			OFFSET VALUE CMD [PER_CORE]
+
+		as hexadecimal OFFSET and VALUE, a single command
+		character CMD (one of 'r', 'w', 'd', 'R'), and an optional
+		decimal PER_CORE flag (0 or 1, default 0) selecting whether
+		the register applies per-core or system-wide. OFFSET must
+		be 4-byte aligned. Fails with -EINVAL on malformed input or
+		an unsupported command, and with -ENOMEM if there is not
+		enough reserved dump memory left to add the entry.
+
+What:		/sys/devices/platform/<mem-dump-device>/register_reset
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(WO) Resets the CPUSS register dump table to its default
+		state, discarding any registers added via register_config
+		and restoring the default per-core register count.
+
+		Write accepts only the value 1; any other value fails with
+		-EINVAL.
+
+What:		/sys/devices/platform/<mem-dump-device>/format_version
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(RO) Format version of the CPUSS register dump data
+		currently stored in the dump memory, returned as a decimal
+		integer.
+
+What:		/sys/devices/platform/<mem-dump-device>/spr_config
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(RW) Configuration of the per-CPU SPR (Special Purpose
+		Register) dump data.
+
+		Read returns, for each CPU that has SPR dump memory
+		initialized, a "spr data for CPU[N] below:" header followed
+		by the list of currently configured SPR data values, one
+		per line.
+
+		Write accepts:
+
+			SPR_DATA CPU_NUM
+
+		as two decimal integers: the SPR data value to append and
+		the target CPU number. Fails with -EINVAL if CPU_NUM is out
+		of range, and with -ENOMEM if there is not enough reserved
+		SPR dump memory left for that CPU.
+
+What:		/sys/devices/platform/<mem-dump-device>/sprs_register_reset
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(WO) Resets the SPR dump tables for all CPUs, discarding any
+		data added via spr_config.
+
+		Write accepts only the value 1; any other value fails with
+		-EINVAL.
+
+What:		/sys/devices/platform/<mem-dump-device>/sprs_format_version
+Date:		September 2026
+Contact:	Yushan Li <yushan.li@oss.qualcomm.com>
+Description:	(RO) Format version of the SPR dump data currently stored in
+		the dump memory for each initialized CPU, returned one line
+		per CPU as "SPR data format version for cpuN is VERSION".

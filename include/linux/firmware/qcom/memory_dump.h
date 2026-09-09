@@ -10,52 +10,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 
-enum dump_client_type {
-	MSM_CPU_CTXT = 0,
-	MSM_L1_CACHE,
-	MSM_L2_CACHE,
-	MSM_OCMEM,
-	MSM_TMC_ETFETB,
-	MSM_ETM0_REG,
-	MSM_ETM1_REG,
-	MSM_ETM2_REG,
-	MSM_ETM3_REG,
-	MSM_TMC0_REG, /* TMC_ETR */
-	MSM_TMC1_REG, /* TMC_ETF */
-	MSM_LOG_BUF,
-	MSM_LOG_BUF_FIRST_IDX,
-	MAX_NUM_CLIENTS,
-};
-
-struct msm_client_dump {
-	enum dump_client_type id;
-	unsigned long start_addr;
-	unsigned long end_addr;
-};
-
-#ifdef CONFIG_QCOM_MEMORY_DUMP
-extern int msm_dump_tbl_register(struct msm_client_dump *client_entry);
-#else
-static inline int msm_dump_tbl_register(struct msm_client_dump *entry)
-{
-	return -EIO;
-}
-#endif
-
-
-#if IS_ENABLED(CONFIG_QCOM_MEMORY_DUMP_V2)
-extern uint32_t msm_dump_table_version(void);
-#else
-static inline uint32_t msm_dump_table_version(void)
-{
-	return 0;
-}
-#endif
-
 #define MSM_DUMP_MAKE_VERSION(ma, mi)	((ma << 20) | mi)
-#define MSM_DUMP_MAJOR(val)		(val >> 20)
-#define MSM_DUMP_MINOR(val)		(val & 0xFFFFF)
-
 
 #define MAX_NUM_ENTRIES		0x150
 
@@ -114,23 +69,5 @@ struct msm_dump_entry {
 	uint32_t type;
 	uint64_t addr;
 };
-
-#if IS_ENABLED(CONFIG_QCOM_MEMORY_DUMP_V2)
-extern int msm_dump_data_register(enum msm_dump_table_ids id,
-				  struct msm_dump_entry *entry);
-extern int msm_dump_data_register_nominidump(enum msm_dump_table_ids id,
-				  struct msm_dump_entry *entry);
-#else
-static inline int msm_dump_data_register(enum msm_dump_table_ids id,
-					 struct msm_dump_entry *entry)
-{
-	return -EINVAL;
-}
-static inline int msm_dump_data_register_nominidump(enum msm_dump_table_ids id,
-					 struct msm_dump_entry *entry)
-{
-	return -EINVAL;
-}
-#endif
 
 #endif

@@ -165,7 +165,7 @@ static int mem_dump_reserve_mem(struct device *dev)
 	if (mem_node) {
 		ret = of_reserved_mem_device_init_by_idx(dev,
 				dev->of_node, 0);
-		of_node_put(dev->of_node);
+		of_node_put(mem_node);
 		if (ret) {
 			dev_err(dev,
 				"Failed to initialize reserved mem, ret %d\n",
@@ -185,7 +185,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	struct msm_dump_entry dump_entry;
 	size_t total_size;
 	u32 size, id;
-	int ret, no_of_nodes;
+	int ret, no_of_nodes = 0;
 	dma_addr_t dma_handle;
 	phys_addr_t phys_addr;
 	struct sg_table mem_dump_sgt;
@@ -194,7 +194,6 @@ static int mem_dump_alloc(struct platform_device *pdev)
 
 	if (mem_dump_reserve_mem(&pdev->dev) != 0)
 		return -ENOMEM;
-	total_size = size = ret = no_of_nodes = 0;
 	/* For dump table registration with IMEM */
 	total_size = sizeof(struct msm_dump_table) * 2;
 	for_each_available_child_of_node(node, child_node) {
@@ -203,6 +202,20 @@ static int mem_dump_alloc(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Unable to find size for %s\n",
 					child_node->name);
 			continue;
+		}
+
+		ret = of_property_read_u32(child_node, "qcom,dump-id", &id);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to find id for %s\n",
+					child_node->name);
+			continue;
+		}
+
+		if (no_of_nodes >= MAX_NUM_ENTRIES) {
+			dev_err(&pdev->dev, "Dump entries exceed limit %d\n",
+					MAX_NUM_ENTRIES);
+			of_node_put(child_node);
+			break;
 		}
 
 		total_size += size;
@@ -243,17 +256,19 @@ static int mem_dump_alloc(struct platform_device *pdev)
 
 	dump_vaddr += (sizeof(struct msm_dump_table) * 2);
 	phys_addr += (sizeof(struct msm_dump_table) * 2);
+	no_of_nodes = 0;
 	for_each_available_child_of_node(node, child_node) {
-		ret = of_property_read_u32(child_node, "qcom,dump-size", &size);
-		if (ret)
+		if (of_property_read_u32(child_node, "qcom,dump-size", &size))
 			continue;
 
-		ret = of_property_read_u32(child_node, "qcom,dump-id", &id);
-		if (ret) {
-			dev_err(&pdev->dev, "Unable to find id for %s\n",
-					child_node->name);
+		if (of_property_read_u32(child_node, "qcom,dump-id", &id))
 			continue;
+
+		if (no_of_nodes >= MAX_NUM_ENTRIES) {
+			of_node_put(child_node);
+			break;
 		}
+		no_of_nodes++;
 
 		dump_data = dump_vaddr;
 		dump_data->addr = phys_addr + MSM_DUMP_DATA_SIZE;
@@ -272,7 +287,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		phys_addr += (size  + MSM_DUMP_DATA_SIZE);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mem_dump_probe(struct platform_device *pdev)

@@ -29,6 +29,7 @@ struct msm_dump_table {
 struct msm_memory_dump {
 	uint64_t table_phys;
 	struct msm_dump_table *table;
+	u64 shm_bridge_handle;
 };
 
 static struct msm_memory_dump memdump;
@@ -113,6 +114,7 @@ static int init_memdump_imem_area(size_t size)
 	}
 
 	imem_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!imem_base) {
 		pr_err("mem dump base table imem offset mapping failed\n");
 		return -ENOMEM;
@@ -129,6 +131,33 @@ static int init_memdump_imem_area(size_t size)
 
 	iounmap(imem_base);
 	return 0;
+}
+
+static void deinit_memdump_imem_area(void)
+{
+	struct device_node *np;
+	void __iomem *imem_base;
+
+	np = of_find_compatible_node(NULL, NULL,
+				     "qcom,msm-imem-mem-dump-table");
+	if (!np) {
+		pr_err("mem dump base table DT node does not exist\n");
+		return;
+	}
+
+	imem_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!imem_base) {
+		pr_err("mem dump base table imem offset mapping failed\n");
+		return;
+	}
+
+	memset_io(imem_base, 0, sizeof(memdump.table_phys));
+	memset_io(imem_base + MSM_DUMP_TOTAL_SIZE_OFFSET,
+			0, sizeof(size_t));
+
+	mb();
+	iounmap(imem_base);
 }
 
 static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
@@ -240,17 +269,20 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to create shm bridge.ret=%d\n", ret);
 		return ret;
 	}
+	memdump.shm_bridge_handle = shm_bridge_handle;
 
 	ret = init_memory_dump(dump_vaddr, phys_addr);
 	if (ret) {
 		dev_err(&pdev->dev, "Memory Dump table set up is failed\n");
 		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
+		memdump.shm_bridge_handle = 0;
 		return ret;
 	}
 
 	ret = init_memdump_imem_area(total_size);
 	if (ret) {
 		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
+		memdump.shm_bridge_handle = 0;
 		return ret;
 	}
 
@@ -302,6 +334,15 @@ static int mem_dump_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void mem_dump_remove(struct platform_device *pdev)
+{
+	deinit_memdump_imem_area();
+	if (memdump.shm_bridge_handle)
+		qcom_tzmem_shm_bridge_delete(memdump.shm_bridge_handle);
+	of_reserved_mem_device_release(&pdev->dev);
+	memdump.shm_bridge_handle = 0;
+}
+
 static const struct of_device_id mem_dump_match_table[] = {
 	{.compatible = "qcom,mem-dump",},
 	{}
@@ -309,6 +350,7 @@ static const struct of_device_id mem_dump_match_table[] = {
 
 static struct platform_driver mem_dump_driver = {
 	.probe = mem_dump_probe,
+	.remove = mem_dump_remove,
 	.driver = {
 		.name = "msm_mem_dump",
 		.of_match_table = mem_dump_match_table,

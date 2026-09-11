@@ -255,11 +255,17 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	total_size = ALIGN(total_size, SZ_4K);
 	dump_vaddr = dmam_alloc_coherent(&pdev->dev, total_size,
 						&dma_handle, GFP_KERNEL);
-	if (!dump_vaddr)
-		return -ENOMEM;
+	if (!dump_vaddr) {
+		ret = -ENOMEM;
+		goto release_reserved_mem;
+	}
 
-	dma_get_sgtable(&pdev->dev, &mem_dump_sgt, dump_vaddr,
+	ret = dma_get_sgtable(&pdev->dev, &mem_dump_sgt, dump_vaddr,
 						dma_handle, total_size);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to get sgtable, ret=%d\n", ret);
+		goto release_reserved_mem;
+	}
 	phys_addr = page_to_phys(sg_page(mem_dump_sgt.sgl));
 	sg_free_table(&mem_dump_sgt);
 
@@ -267,24 +273,19 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	ret = qcom_tzmem_shm_bridge_create(phys_addr, total_size, &shm_bridge_handle);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to create shm bridge.ret=%d\n", ret);
-		return ret;
+		goto release_reserved_mem;
 	}
 	memdump.shm_bridge_handle = shm_bridge_handle;
 
 	ret = init_memory_dump(dump_vaddr, phys_addr);
 	if (ret) {
 		dev_err(&pdev->dev, "Memory Dump table set up is failed\n");
-		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
-		memdump.shm_bridge_handle = 0;
-		return ret;
+		goto delete_shm_bridge;
 	}
 
 	ret = init_memdump_imem_area(total_size);
-	if (ret) {
-		qcom_tzmem_shm_bridge_delete(shm_bridge_handle);
-		memdump.shm_bridge_handle = 0;
-		return ret;
-	}
+	if (ret)
+		goto delete_shm_bridge;
 
 	dump_vaddr += (sizeof(struct msm_dump_table) * 2);
 	phys_addr += (sizeof(struct msm_dump_table) * 2);
@@ -320,6 +321,15 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	}
 
 	return 0;
+
+delete_shm_bridge:
+	qcom_tzmem_shm_bridge_delete(memdump.shm_bridge_handle);
+	memdump.shm_bridge_handle = 0;
+
+release_reserved_mem:
+	of_reserved_mem_device_release(&pdev->dev);
+
+	return ret;
 }
 
 static int mem_dump_probe(struct platform_device *pdev)

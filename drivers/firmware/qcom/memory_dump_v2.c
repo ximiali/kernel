@@ -32,6 +32,52 @@ struct msm_memory_dump {
 	u64 shm_bridge_handle;
 };
 
+/*
+ * Memory dump table layout
+ * ------------------------
+ *
+ * IMEM (qcom,msm-imem-mem-dump-table)
+ * +------------------------------------------+
+ * |offset 0x000: memdump.table_phys (8 bytes) |
+ * |offset 0x724: total_size         (8 bytes) |
+ * +------------------------------------------+
+ *
+ * DMA-coherent buffer allocated in mem_dump_alloc() (dump_vaddr / phys_addr)
+ * +--------------------------------------------------------------------------+
+ * | struct msm_dump_table  "base table"                                      |
+ * |   version     = MSM_DUMP_TABLE_VERSION                                   |
+ * |   num_entries                                                            |
+ * |   entries[0]  = { id    = MSM_DUMP_TABLE_APPS,                           |
+ * |                   type  = MSM_DUMP_TYPE_TABLE,                           |
+ * |                   addr  = phys addr of "apps table" below }              |
+ * +--------------------------------------------------------------------------+
+ * | struct msm_dump_table  "apps table"                                      |
+ * |   version     = MSM_DUMP_TABLE_VERSION                                   |
+ * |   num_entries                                                            |
+ * |   entries[0]  = { id    = <qcom,dump-id of node 0>,                      |
+ * |                   type  = MSM_DUMP_TYPE_DATA,                            |
+ * |                   addr  = phys addr of msm_dump_data #0 below }          |
+ * |   entries[1]  = { ... node 1 ... }                                       |
+ * |   ...                                                                    |
+ * +--------------------------------------------------------------------------+
+ * |   struct msm_dump_data #0 (name/addr/len of dump buffer  #0)             |
+ * |   raw dump buffer #0      (qcom,dump-size bytes from node 0)             |
+ * +--------------------------------------------------------------------------+
+ * |   struct msm_dump_data #1 (name/addr/len of dump buffer  #1)             |
+ * |   raw dump buffer #1      (qcom,dump-size bytes from node 1)             |
+ * +--------------------------------------------------------------------------+
+ * |   ...                                                                    |
+ * +--------------------------------------------------------------------------+
+ *
+ * memdump.table       - kernel virtual address of the "base table" above.
+ * memdump.table_phys  - physical address of the "base table", also mirrored
+ *                       into IMEM so that firmware can locate it after a crash.
+ *
+ * Each valid DT child node gets one MSM_DUMP_TYPE_DATA entry in the
+ * "apps table", which references its struct msm_dump_data header;
+ * that header in turn points at the actual dump buffer located immediately
+ * after it in memory.
+ */
 static struct msm_memory_dump memdump;
 
 static int msm_dump_table_register(struct msm_dump_entry *entry)
@@ -71,8 +117,13 @@ static struct msm_dump_table *msm_dump_get_table(enum msm_dump_table_ids id)
 		return ERR_PTR(-EINVAL);
 	}
 
+	/*
+	 * Table address stored in dump entries are physical addresses
+	 * within the DMA-coherent allocation. Convert the stored physical
+	 * address back into a kernel virtual address by computing its
+	 * offset from the base table.
+	 */
 	offset = table->entries[i].addr - memdump.table_phys;
-	/* Get the apps table pointer */
 	table = (void *)memdump.table + offset;
 
 	return table;
@@ -100,6 +151,7 @@ static int register_dump_table_entry(enum msm_dump_table_ids id,
 	return 0;
 }
 
+/* Offset in IMEM used by firmware to read the total dump buffer size */
 #define MSM_DUMP_TOTAL_SIZE_OFFSET	0x724
 static int init_memdump_imem_area(size_t size)
 {
@@ -156,10 +208,21 @@ static void deinit_memdump_imem_area(void)
 	memset_io(imem_base + MSM_DUMP_TOTAL_SIZE_OFFSET,
 			0, sizeof(size_t));
 
+	/* Ensure write to imem_base is complete before unmapping */
 	mb();
 	iounmap(imem_base);
 }
 
+/**
+ * init_memory_dump() - Initialize dump tables in the allocated buffer.
+ * @dump_vaddr: Base virtual address of the dump region.
+ * @phys_addr: Physical address corresponding to @dump_vaddr.
+ *
+ * Create the base table and apps table used by firmware
+ * to locate registered dump regions after a crash.
+ *
+ * Return: 0 on success or a negative error code.
+ */
 static int init_memory_dump(void *dump_vaddr, phys_addr_t phys_addr)
 {
 	struct msm_dump_table *table;
@@ -206,6 +269,17 @@ static int mem_dump_reserve_mem(struct device *dev)
 }
 
 #define MSM_DUMP_DATA_SIZE sizeof(struct msm_dump_data)
+
+/**
+ * mem_dump_alloc() - Allocate and initialize dump memory.
+ * @pdev: Platform device.
+ *
+ * Calculate the required memory size from DT child nodes,
+ * allocate a DMA-coherent buffer, create dump tables and
+ * expose the base table address through IMEM.
+ *
+ * Return: 0 on success or a negative error code.
+ */
 static int mem_dump_alloc(struct platform_device *pdev)
 {
 	struct device_node *child_node;
@@ -304,6 +378,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		no_of_nodes++;
 
 		dump_data = dump_vaddr;
+		/* The buffer immediately follows its msm_dump_data header */
 		dump_data->addr = phys_addr + MSM_DUMP_DATA_SIZE;
 		dump_data->len = size;
 		dump_entry.id = id;

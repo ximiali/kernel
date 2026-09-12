@@ -864,6 +864,35 @@
 		};
 	};
 
+	mem_dump: mem-dump {
+		compatible = "qcom,mem-dump";
+
+		c0-context {
+			qcom,dump-id = <0x0>;
+			qcom,dump-size = <0x800>;
+		};
+
+		l1-icache0 {
+			qcom,dump-id = <0x60>;
+			qcom,dump-size = <0x26100>;
+		};
+
+		l1-dcache0 {
+			qcom,dump-id = <0x80>;
+			qcom,dump-size = <0x12100>;
+		};
+
+		pmic {
+			qcom,dump-id = <0xe4>;
+			qcom,dump-size = <0x80000>;
+		};
+
+		etr-reg {
+			qcom,dump-id = <0x100>;
+			qcom,dump-size = <0x1000>;
+		};
+	};
+
 	smp2p-adsp {
 		compatible = "qcom,smp2p";
 		qcom,smem = <443>, <429>;
@@ -6821,6 +6850,11 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			mem-dump-table@10 {
+				compatible = "qcom,msm-imem-mem-dump-table";
+				reg = <0x10 0x8>;
+			};
 
 			minidump_config: minidump-sram@1c {
 				reg = <0x1c 0x4>;

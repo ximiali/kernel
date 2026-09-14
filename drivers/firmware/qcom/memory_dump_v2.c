@@ -21,13 +21,13 @@
 #define MSM_DUMP_TABLE_VERSION		MSM_DUMP_MAKE_VERSION(2, 0)
 
 struct msm_dump_table {
-	uint32_t version;
-	uint32_t num_entries;
+	u32 version;
+	u32 num_entries;
 	struct msm_dump_entry entries[MAX_NUM_ENTRIES];
 };
 
 struct msm_memory_dump {
-	uint64_t table_phys;
+	u64 table_phys;
 	struct msm_dump_table *table;
 	u64 shm_bridge_handle;
 };
@@ -173,9 +173,9 @@ static int init_memdump_imem_area(size_t size)
 	}
 
 	memcpy_toio(imem_base, &memdump.table_phys,
-			sizeof(memdump.table_phys));
+		    sizeof(memdump.table_phys));
 	memcpy_toio(imem_base + MSM_DUMP_TOTAL_SIZE_OFFSET,
-			&size, sizeof(size_t));
+		    &size, sizeof(size_t));
 
 	/* Ensure write to imem_base is complete before unmapping */
 	mb();
@@ -205,8 +205,7 @@ static void deinit_memdump_imem_area(void)
 	}
 
 	memset_io(imem_base, 0, sizeof(memdump.table_phys));
-	memset_io(imem_base + MSM_DUMP_TOTAL_SIZE_OFFSET,
-			0, sizeof(size_t));
+	memset_io(imem_base + MSM_DUMP_TOTAL_SIZE_OFFSET, 0, sizeof(size_t));
 
 	/* Ensure write to imem_base is complete before unmapping */
 	mb();
@@ -255,8 +254,7 @@ static int mem_dump_reserve_mem(struct device *dev)
 
 	mem_node = of_parse_phandle(dev->of_node, "memory-region", 0);
 	if (mem_node) {
-		ret = of_reserved_mem_device_init_by_idx(dev,
-				dev->of_node, 0);
+		ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
 		of_node_put(mem_node);
 		if (ret) {
 			dev_err(dev,
@@ -310,13 +308,13 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		ret = of_property_read_u32(child_node, "qcom,dump-id", &id);
 		if (ret) {
 			dev_err(&pdev->dev, "Unable to find id for %s\n",
-					child_node->name);
+				child_node->name);
 			continue;
 		}
 
 		if (no_of_nodes >= MAX_NUM_ENTRIES) {
 			dev_err(&pdev->dev, "Dump entries exceed limit %d\n",
-					MAX_NUM_ENTRIES);
+				MAX_NUM_ENTRIES);
 			of_node_put(child_node);
 			break;
 		}
@@ -328,14 +326,14 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	total_size += (MSM_DUMP_DATA_SIZE * no_of_nodes);
 	total_size = ALIGN(total_size, SZ_4K);
 	dump_vaddr = dmam_alloc_coherent(&pdev->dev, total_size,
-						&dma_handle, GFP_KERNEL);
+					 &dma_handle, GFP_KERNEL);
 	if (!dump_vaddr) {
 		ret = -ENOMEM;
 		goto release_reserved_mem;
 	}
 
 	ret = dma_get_sgtable(&pdev->dev, &mem_dump_sgt, dump_vaddr,
-						dma_handle, total_size);
+			      dma_handle, total_size);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get sgtable, ret=%d\n", ret);
 		goto release_reserved_mem;
@@ -383,10 +381,9 @@ static int mem_dump_alloc(struct platform_device *pdev)
 		dump_data->len = size;
 		dump_entry.id = id;
 		strscpy(dump_data->name, child_node->name,
-					sizeof(dump_data->name));
+			sizeof(dump_data->name));
 		dump_entry.addr = phys_addr;
-		ret = register_dump_table_entry(MSM_DUMP_TABLE_APPS,
-					&dump_entry);
+		ret = register_dump_table_entry(MSM_DUMP_TABLE_APPS, &dump_entry);
 		if (ret)
 			dev_err(&pdev->dev, "Data dump setup failed, id = %d\n",
 				id);

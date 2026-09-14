@@ -116,12 +116,12 @@ enum msm_dump_type {
  * @reserved: padding.
  */
 struct msm_dump_data {
-	uint32_t version;
-	uint32_t magic;
+	u32 version;
+	u32 magic;
 	char name[32];
-	uint64_t addr;
-	uint64_t len;
-	uint32_t reserved;
+	u64 addr;
+	u64 len;
+	u32 reserved;
 };
 
 /**
@@ -132,10 +132,10 @@ struct msm_dump_data {
  * @addr: Physical address of the referenced dump data or table.
  */
 struct msm_dump_entry {
-	uint32_t id;
+	u32 id;
 	char name[32];
-	uint32_t type;
-	uint64_t addr;
+	u32 type;
+	u64 addr;
 };
 
 #endif

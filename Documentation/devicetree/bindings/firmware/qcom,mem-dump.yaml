@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/firmware/qcom,mem-dump.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Memory Dump
+
+maintainers:
+  - Jie Gan <jie.gan@oss.qualcomm.com>
+  - Yushan Li <yushan.li@oss.qualcomm.com>
+
+description:
+  The Qualcomm memory dump driver allocates dump buffers and
+  registers them in the Qualcomm memory dump table. Each dump
+  region is described by a child node carrying an identifier
+  and buffer size. If a memory-region is provided, the driver
+  associates the device with the referenced reserved memory
+  region before allocating the dump buffer.
+
+properties:
+  compatible:
+    const: qcom,mem-dump
+
+  memory-region:
+    maxItems: 1
+    description:
+      Optional reference to the reserved-memory region
+      backing the collected dump data.
+
+additionalProperties:
+  type: object
+
+  description: Each child node represents a data dump entry.
+
+  properties:
+    qcom,dump-id:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description:
+        Dump data identifier as defined by the Qualcomm
+        memory dump format.
+
+    qcom,dump-size:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description:
+        Size of dump buffer in bytes.
+
+  required:
+    - qcom,dump-id
+    - qcom,dump-size
+
+  additionalProperties: false
+
+required:
+  - compatible
+
+examples:
+  - |
+    reserved-memory {
+        mem_dump_mem: dump-memory {
+            compatible = "shared-dma-pool";
+            size = <0x0 0x4000000>;
+            no-map;
+        };
+    };
+
+    mem-dump {
+        compatible = "qcom,mem-dump";
+        memory-region = <&mem_dump_mem>;
+
+        c0-context {
+            qcom,dump-id = <0x0>;
+            qcom,dump-size = <0x800>;
+        };
+
+        rpmh {
+            qcom,dump-id = <0xec>;
+            qcom,dump-size = <0x2000000>;
+        };
+    };
+
+...
